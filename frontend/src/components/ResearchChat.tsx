@@ -180,29 +180,29 @@ const FormattedText = ({
         components={{
           // Headings
           h1: ({ children }) => (
-            <h1 className="text-2xl font-bold text-white mt-8 mb-4 first:mt-0">
+            <h1 className="text-2xl font-bold text-white mt-8 mb-4 first:mt-0 font-inter">
               {children}
             </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="text-xl font-semibold text-white mt-6 mb-3 first:mt-0">
+            <h2 className="text-xl font-semibold text-white mt-6 mb-3 first:mt-0 font-inter">
               {children}
             </h2>
           ),
           h3: ({ children }) => (
-            <h3 className="text-lg font-semibold text-gray-100 mt-5 mb-2 first:mt-0">
+            <h3 className="text-lg font-semibold text-gray-100 mt-5 mb-2 first:mt-0 font-inter">
               {children}
             </h3>
           ),
           h4: ({ children }) => (
-            <h4 className="text-base font-semibold text-gray-200 mt-4 mb-2">
+            <h4 className="text-base font-semibold text-gray-200 mt-4 mb-2 font-inter">
               {children}
             </h4>
           ),
 
           // Paragraphs
           p: ({ children }) => (
-            <p className="text-[15px] leading-relaxed text-gray-300/95 mb-4 last:mb-0">
+            <p className="text-[15px] leading-relaxed text-gray-300/95 mb-4 last:mb-0 font-instrument">
               {children}
             </p>
           ),
@@ -585,7 +585,7 @@ export default function ResearchChat() {
                 className="animate-in fade-in slide-in-from-bottom-4 duration-500"
               >
                 {msg.role === "user" ? (
-                  <h2 className="text-3xl font-medium text-white tracking-tight mb-8">
+                  <h2 className="font-inter text-3xl font-medium text-white tracking-tight mb-8">
                     {msg.content}
                   </h2>
                 ) : (
@@ -677,7 +677,7 @@ export default function ResearchChat() {
                   placeholder="Ask anything..."
                   disabled={isSearching}
                   className={cn(
-                    "w-full bg-[#202022] text-white border-white/10 placeholder:text-gray-500 focus-visible:ring-1 focus-visible:ring-blue-500/50 focus-visible:border-blue-500/50 transition-all shadow-2xl",
+                    "w-full font-instrument bg-[#202022] text-white border-white/10 placeholder:text-gray-500 focus-visible:ring-1 focus-visible:ring-blue-500/50 focus-visible:border-blue-500/50 transition-all shadow-2xl",
                     isHome
                       ? "h-16 text-lg px-6 rounded-2xl"
                       : "h-14 text-base px-5 pr-14 rounded-xl"
