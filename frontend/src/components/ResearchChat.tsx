@@ -202,7 +202,7 @@ const FormattedText = ({
 
           // Paragraphs
           p: ({ children }) => (
-            <p className="text-[15px] leading-relaxed text-gray-300/95 mb-4 last:mb-0 font-instrument">
+            <p className="text-[15px] leading-relaxed text-gray-300/95 mb-4 last:mb-0 font-ibm-plex-sans">
               {children}
             </p>
           ),

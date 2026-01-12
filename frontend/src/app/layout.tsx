@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Instrument_Serif } from "next/font/google";
+import { Inter, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({
@@ -7,10 +7,10 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
-const instrument = Instrument_Serif({
+const ibm_plex_sans = IBM_Plex_Sans({
   subsets: ["latin"],
   weight: "400",
-  variable: "--font-instrument",
+  variable: "--font-ibm-plex-sans",
 });
 
 export const metadata: Metadata = {
@@ -26,7 +26,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${instrument.variable} antialiased`}>
+      <body
+        className={`${inter.variable} ${ibm_plex_sans.variable} antialiased`}
+      >
         {children}
       </body>
     </html>
