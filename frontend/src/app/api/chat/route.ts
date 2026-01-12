@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Query is required" }, { status: 400 });
         }
 
-        const backendUrl = "http://localhost:8000/api/research";
+        const backendUrl = "https://research-agent-project.vercel.app/api/research";
 
         const response = await fetch(backendUrl, {
             method: "POST",
