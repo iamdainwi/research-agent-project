@@ -24,7 +24,7 @@ export default function AuthPage() {
     setError("");
 
     try {
-      const endpoint = isLogin ? "/api/v1/auth/login" : "/api/v1/auth/register";
+      const endpoint = isLogin ? "/api/auth/login" : "/api/auth/register";
       
       const res = await fetch(endpoint, {
         method: "POST",

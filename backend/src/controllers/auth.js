@@ -126,6 +126,30 @@ exports.getApiKeys = async (req, res, next) => {
     }
 };
 
+// @desc    Delete API Key
+// @route   DELETE /api/v1/auth/apikey/:id
+// @access  Private
+exports.deleteApiKey = async (req, res, next) => {
+    try {
+        const key = await APIKey.findById(req.params.id);
+
+        if (!key) {
+            return res.status(404).json({ success: false, error: 'API Key not found' });
+        }
+
+        // Make sure user owns the key
+        if (key.user.toString() !== req.user.id) {
+            return res.status(401).json({ success: false, error: 'Not authorized to delete this key' });
+        }
+
+        await key.deleteOne();
+
+        res.status(200).json({ success: true, data: {} });
+    } catch (err) {
+        res.status(500).json({ success: false, error: 'Server Error' });
+    }
+};
+
 // Get token from model, create cookie and send response
 const sendTokenResponse = (user, statusCode, res) => {
     // Create token

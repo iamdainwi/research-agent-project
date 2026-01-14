@@ -4,6 +4,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
@@ -53,7 +54,7 @@ const SourceCard = ({ source, index }: { source: Source; index: number }) => {
   const hostname = new URL(source.url).hostname.replace("www.", "");
 
   return (
-    <a
+    <Link
       href={source.url}
       target="_blank"
       rel="noopener noreferrer"
@@ -81,7 +82,7 @@ const SourceCard = ({ source, index }: { source: Source; index: number }) => {
           {index + 1}
         </span>
       </div>
-    </a>
+    </Link>
   );
 };
 
@@ -335,7 +336,6 @@ export default function ResearchChat() {
   // Auto-scroll logic
   useEffect(() => {
     if (scrollRef.current) {
-      // Only scroll if we are near the bottom or it's a new message
       const isNearBottom =
         window.innerHeight + window.scrollY >= document.body.offsetHeight - 500;
       if (isNearBottom) {
@@ -378,7 +378,7 @@ export default function ResearchChat() {
     ]);
 
     try {
-      const response = await fetch("/api/v1/research", {
+      const response = await fetch("/api/research", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: userQuery }),
@@ -543,7 +543,7 @@ export default function ResearchChat() {
   const isHome = messages.length === 0;
 
   return (
-    <div className="flex flex-col h-screen bg-[#18181b] text-zinc-100 font-sans selection:bg-blue-500/30">
+    <div className="flex flex-col h-screen bg-[#18181b] text-zinc-100 font-sans selection:bg-blue-500/30 w-full">
       {/* Header (Hidden on Home) */}
       {!isHome && (
         <header className="fixed top-0 w-full bg-[#18181b]/80 backdrop-blur-md border-b border-white/5 z-50 h-14 flex items-center px-4 md:px-6">
@@ -559,9 +559,11 @@ export default function ResearchChat() {
             >
               <Share2 className="w-4 h-4" />
             </Button>
-            <div className="w-8 h-8 rounded-full bg-linear-to-tr from-blue-600 to-purple-600 flex items-center justify-center text-xs font-bold">
-              D
-            </div>
+            <Link href="/profile">
+              <div className="w-8 h-8 rounded-full bg-linear-to-tr from-blue-600 to-purple-600 flex items-center justify-center text-xs font-bold hover:ring-2 hover:ring-white/20 transition-all cursor-pointer">
+                D
+              </div>
+            </Link>
           </div>
         </header>
       )}
