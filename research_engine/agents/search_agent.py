@@ -52,9 +52,9 @@ def expand_queries(original_query: str, num_variations: int = 6) -> List[str]:
 
         # Filter out any numbered queries or empty lines
         expanded_queries = [
-            re.sub(r'^\d+[\.\)]\s*', '', q)  # Remove numbers like "1. " or "1) "
+            re.sub(r'^\d+[\.\)]\s*', '', q) 
             for q in expanded_queries
-            if len(q.strip()) > 5  # Must be substantial
+            if len(q.strip()) > 5
         ]
 
         # Combine original with expanded (remove duplicates, keep order)
@@ -104,23 +104,7 @@ def search_multiple_queries(queries: List[str], results_per_query: int = 6) -> L
             if url and url not in seen_urls:
                 seen_urls.add(url)
                 all_results.append(result)
-
-        # Small delay to avoid rate limiting
-        # Note: Original code had await asyncio.sleep(0.5) but this function is sync in definition in main.py
-        # however, it was called inside an async context. Wait, in main.py it was:
-        # def search_multiple_queries... -> async wasn't defined but inside loop:
-        # if i < len(queries): asyncio.sleep(0.5) <--- This is a bug in original code if it's not async def!
-        # Python's asyncio.sleep() returns a coroutine. If you don't await it, nothing happens.
-        # But search_multiple_queries was defined as regular def in main.py (line 112).
-        # And it calls asyncio.sleep(0.5) without await (line 135).
-        # So it was doing nothing. I will fix this by making it async or just using time.sleep.
-        # Since the scraper is async, I should probably make this async properly or use time.sleep.
-        # Given the original code likely intended to sleep, I'll use time.sleep for a synchronous function
-        # OR make it async.
-        # Let's check main.py again. `search_multiple_queries` is called in `run_pipeline` which IS async.
-        # `search_results = search_multiple_queries(...)` - it was called synchronously.
-        # So I should use time.sleep if I want it to sleep, or make it async.
-        # I'll stick to synchronous for now as in the original, but use time.sleep to actually sleep.
+                
         pass
         
     logger.info(f"✓ Total unique results: {len(all_results)}")
