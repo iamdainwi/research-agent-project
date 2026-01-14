@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
@@ -325,6 +326,7 @@ const FormattedText = ({
 // --- Main Component ---
 
 export default function ResearchChat() {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -376,11 +378,20 @@ export default function ResearchChat() {
     ]);
 
     try {
-      const response = await fetch("/api/chat", {
+      const response = await fetch("/api/v1/research", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: userQuery }),
       });
+
+      if (response.status === 401 || response.status === 403) {
+        window.location.href = "/auth";
+        return;
+      }
+
+      if (response.status === 429) {
+        throw new Error("Daily quota exceeded. Please try again tomorrow.");
+      }
 
       if (!response.body) throw new Error("No response body");
 
