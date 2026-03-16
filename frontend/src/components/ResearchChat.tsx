@@ -20,6 +20,7 @@ import {
   AlignLeft,
   Share2,
   Plus,
+  Copy,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,7 @@ type Message = {
   sources?: Source[];
   steps?: Step[];
   isThinking?: boolean;
+  queryType?: string;
 };
 
 // --- Helper Components ---
@@ -424,6 +426,16 @@ export default function ResearchChat() {
               }
 
               switch (eventType) {
+                case "query_type":
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === newMessageId
+                        ? { ...msg, queryType: data }
+                        : msg
+                    )
+                  );
+                  break;
+
                 case "status":
                   // Mark current step done
                   updateStep(newMessageId, currentStepId, "done");
@@ -587,6 +599,23 @@ export default function ResearchChat() {
               <h1 className="text-4xl md:text-5xl font-medium tracking-tight text-white">
                 What do you want to know?
               </h1>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl mx-auto mt-8">
+                {[
+                  "Latest developments in AI agents 2026",
+                  "How does HNSW algorithm work?",
+                  "Best practices for RAG pipelines",
+                  "What is vector similarity search?"
+                ].map((q, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setQuery(q)}
+                    className="text-sm text-zinc-400 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-left p-4 transition-colors"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -605,6 +634,21 @@ export default function ResearchChat() {
                   <div className="relative">
                     {/* Left Connector Line */}
                     <div className="absolute left-0 top-0 bottom-0 w-px bg-white/5 -ml-8 hidden md:block" />
+
+                    {msg.queryType && (
+                      <div className="mb-4">
+                        {msg.queryType === 'CONVERSATIONAL' && (
+                          <span className="text-xs text-zinc-500 px-2 py-0.5 rounded-full border border-zinc-700">
+                            Direct answer
+                          </span>
+                        )}
+                        {msg.queryType === 'RESEARCH' && (
+                          <span className="text-xs text-blue-400 px-2 py-0.5 rounded-full border border-blue-800">
+                            Web research
+                          </span>
+                        )}
+                      </div>
+                    )}
 
                     {/* Thought Process */}
                     <ThinkingProcess
@@ -641,6 +685,15 @@ export default function ResearchChat() {
 
                         {/* Action Buttons */}
                         <div className="flex items-center gap-2 mt-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            onClick={() => navigator.clipboard.writeText(msg.content)}
+                            variant="outline"
+                            size="sm"
+                            className="bg-[#202022] border-white/5 text-xs text-gray-400 h-8 hover:text-white hover:bg-white/10"
+                          >
+                            <Copy className="w-3.5 h-3.5 mr-2" />
+                            Copy
+                          </Button>
                           <Button
                             variant="outline"
                             size="sm"

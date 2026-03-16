@@ -23,7 +23,7 @@ async def fetch_pages(links: List[str]) -> List[Dict]:
                 response = await client.get(
                     url,
                     headers=headers,
-                    timeout=REQUEST_TIMEOUT,
+                    timeout=8.0,
                     follow_redirects=True
                 )
 
@@ -31,12 +31,11 @@ async def fetch_pages(links: List[str]) -> List[Dict]:
                     logger.info(f"✓ Successfully fetched {url}")
                     return {"url": url, "html": response.text}
                 else:
-                    logger.warning(f"✗ Failed {url}: Status {response.status_code}")
-            except httpx.TimeoutException:
-                logger.warning(f"✗ Timeout fetching {url}")
-            except Exception as e:
-                logger.warning(f"✗ Error fetching {url}: {type(e).__name__}")
-            return None
+                    return None
+            except (httpx.TimeoutException, httpx.RequestError):
+                return None  # skip failed pages silently
+            except Exception:
+                return None
 
     # Use connection pooling
     async with httpx.AsyncClient(http2=True) as client:

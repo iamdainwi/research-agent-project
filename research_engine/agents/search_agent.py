@@ -3,7 +3,8 @@ import re
 import os
 from typing import List, Dict
 from ollama import Client
-from ddgs import DDGS
+from duckduckgo_search import DDGS
+from duckduckgo_search.exceptions import RatelimitException
 from config import logger, OLLAMA_HOST, OLLAMA_API_KEY, MODEL_NAME
 
 def expand_queries(original_query: str, num_variations: int = 6) -> List[str]:
@@ -72,19 +73,26 @@ def expand_queries(original_query: str, num_variations: int = 6) -> List[str]:
         return [original_query]
 
 
-def search_web(query: str, max_results: int = 10) -> List[Dict]:
+async def search_web(query: str, max_results: int = 10) -> List[Dict]:
     """Search the web using DuckDuckGo."""
-    try:
-        logger.info(f"Searching for: '{query}' (max {max_results} results)")
-        results = list(DDGS().text(query, max_results=max_results))
-        logger.info(f"Found {len(results)} search results")
-        return results
-    except Exception as e:
-        logger.error(f"Search failed for '{query}': {e}")
-        return []
+    logger.info(f"Searching for: '{query}' (max {max_results} results)")
+    for attempt in range(3):
+        try:
+            with DDGS() as ddgs:
+                results = list(ddgs.text(query, max_results=max_results))
+                logger.info(f"Found {len(results)} search results")
+                return results
+        except RatelimitException:
+            wait = (attempt + 1) * 2
+            logger.warning(f"DDGS rate limit hit. Waiting {wait}s...")
+            await asyncio.sleep(wait)
+        except Exception as e:
+            logger.error(f"Search failed for '{query}': {e}")
+            return []
+    return []
 
 
-def search_multiple_queries(queries: List[str], results_per_query: int = 6) -> List[Dict]:
+async def search_multiple_queries(queries: List[str], results_per_query: int = 6) -> List[Dict]:
     """
     Search multiple queries and combine results.
     Deduplicates by URL to avoid fetching the same page multiple times.
@@ -96,7 +104,7 @@ def search_multiple_queries(queries: List[str], results_per_query: int = 6) -> L
 
     for i, query in enumerate(queries, 1):
         logger.info(f"Query [{i}/{len(queries)}]: '{query}'")
-        results = search_web(query, max_results=results_per_query)
+        results = await search_web(query, max_results=results_per_query)
 
         # Deduplicate by URL
         for result in results:
@@ -105,8 +113,6 @@ def search_multiple_queries(queries: List[str], results_per_query: int = 6) -> L
                 seen_urls.add(url)
                 all_results.append(result)
                 
-        pass
-        
     logger.info(f"✓ Total unique results: {len(all_results)}")
     return all_results
 
