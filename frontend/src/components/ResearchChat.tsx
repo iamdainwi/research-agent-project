@@ -2,13 +2,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
-import rehypeSanitize from "rehype-sanitize";
 import {
   Loader2,
   ArrowUp,
@@ -18,28 +16,24 @@ import {
   ChevronRight,
   Library,
   AlignLeft,
-  Share2,
   Plus,
   Copy,
+  Check,
+  RotateCcw,
+  Zap,
+  Search,
+  BookOpen,
+  TrendingUp,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useChatHistoryContext } from "@/app/(dashboard)/layout";
 
-// --- Types ---
+// ─── Types ───
 
-type Source = {
-  title: string;
-  url: string;
-  favicon?: string;
-};
-
-type Step = {
-  id: number;
-  message: string;
-  status: "pending" | "in-progress" | "done";
-};
-
+type Source = { title: string; url: string; favicon?: string };
+type Step = { id: number; message: string; status: "pending" | "in-progress" | "done" };
 type Message = {
   id: string;
   role: "user" | "assistant";
@@ -50,357 +44,219 @@ type Message = {
   queryType?: string;
 };
 
-// --- Helper Components ---
+// ─── Sub-components ───
 
-const SourceCard = ({ source, index }: { source: Source; index: number }) => {
-  const hostname = new URL(source.url).hostname.replace("www.", "");
+function SourceCard({ source, index }: { source: Source; index: number }) {
+  let hostname = "";
+  try { hostname = new URL(source.url).hostname.replace("www.", ""); } catch { hostname = source.url; }
 
   return (
-    <Link
-      href={source.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group flex flex-col justify-between p-3 h-24 bg-[#202022] hover:bg-[#2A2A2D] border border-white/5 hover:border-white/10 rounded-lg transition-all cursor-pointer overflow-hidden"
-    >
-      <div className="flex flex-col gap-1.5">
-        <h3 className="text-[13px] font-medium text-gray-200 line-clamp-2 leading-snug group-hover:text-blue-400 transition-colors">
-          {source.title}
-        </h3>
-      </div>
+    <Link href={source.url} target="_blank" rel="noopener noreferrer"
+      className="group flex flex-col justify-between p-3 h-[84px] bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] hover:border-white/[0.12] rounded-xl transition-all duration-200 overflow-hidden">
+      <h3 className="text-[12px] font-medium text-zinc-300 line-clamp-2 leading-snug group-hover:text-blue-400 transition-colors">
+        {source.title}
+      </h3>
       <div className="flex items-center gap-2 mt-auto">
-        <div className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center overflow-hidden shrink-0">
-          {source.favicon ? (
-            <img
-              src={source.favicon}
-              alt=""
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <Globe className="w-2.5 h-2.5 text-gray-400" />
-          )}
+        <div className="w-3.5 h-3.5 rounded-full bg-white/[0.08] flex items-center justify-center overflow-hidden shrink-0">
+          {source.favicon
+            ? <img src={source.favicon} alt="" className="w-full h-full object-cover" />
+            : <Globe className="w-2 h-2 text-zinc-500" />}
         </div>
-        <span className="text-[11px] text-gray-500 truncate">{hostname}</span>
-        <span className="text-[10px] text-gray-600 ml-auto bg-white/5 px-1.5 py-0.5 rounded-full">
-          {index + 1}
-        </span>
+        <span className="text-[10px] text-zinc-600 truncate">{hostname}</span>
+        <span className="text-[9px] text-zinc-700 ml-auto bg-white/[0.04] px-1.5 py-0.5 rounded-full font-mono">{index + 1}</span>
       </div>
     </Link>
   );
-};
+}
 
-const ThinkingProcess = ({
-  steps,
-  isThinking,
-}: {
-  steps?: Step[];
-  isThinking?: boolean;
-}) => {
-  const [isOpen, setIsOpen] = useState(true);
-
+function ThinkingSteps({ steps, isThinking }: { steps?: Step[]; isThinking?: boolean }) {
+  const [open, setOpen] = useState(true);
   if (!steps || steps.length === 0) return null;
 
   return (
-    <div className="mb-6">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-200 transition-colors mb-2 group"
-      >
+    <div className="mb-5">
+      <button onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 text-[13px] text-zinc-500 hover:text-zinc-300 transition-colors mb-2">
         {isThinking ? (
-          <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+          <span className="relative flex h-4 w-4">
+            <span className="absolute inset-0 rounded-full bg-blue-500/30 animate-ping" />
+            <Loader2 className="w-4 h-4 animate-spin text-blue-500 relative" />
+          </span>
         ) : (
-          <div className="w-4 h-4 rounded-full bg-blue-500/20 flex items-center justify-center">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-          </div>
+          <span className="w-4 h-4 rounded-full bg-emerald-500/20 flex items-center justify-center">
+            <Check className="w-2.5 h-2.5 text-emerald-500" />
+          </span>
         )}
-        <span className="font-medium">
-          {isThinking ? "Researching..." : "Research complete"}
-        </span>
-        {isOpen ? (
-          <ChevronDown className="w-4 h-4 opacity-50" />
-        ) : (
-          <ChevronRight className="w-4 h-4 opacity-50" />
-        )}
+        <span className="font-medium">{isThinking ? "Researching..." : "Research complete"}</span>
+        {open ? <ChevronDown className="w-3.5 h-3.5 opacity-40" /> : <ChevronRight className="w-3.5 h-3.5 opacity-40" />}
       </button>
-
-      {isOpen && (
-        <div className="pl-[1.1rem] ml-2 border-l border-white/10 space-y-2 py-1">
+      {open && (
+        <div className="pl-5 ml-[7px] border-l border-white/[0.06] space-y-1.5 py-1">
           {steps.map((step) => (
-            <div key={step.id} className="flex items-center gap-3 text-[13px]">
+            <div key={step.id} className="flex items-center gap-2.5 text-[12px]">
               {step.status === "done" ? (
-                <div className="w-4 h-4 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
-                  <span className="text-[10px] text-green-500">✓</span>
-                </div>
+                <span className="w-3.5 h-3.5 rounded-full bg-emerald-500/15 flex items-center justify-center shrink-0">
+                  <Check className="w-2 h-2 text-emerald-500" />
+                </span>
               ) : step.status === "in-progress" ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400 shrink-0" />
+                <Loader2 className="w-3 h-3 animate-spin text-blue-400 shrink-0" />
               ) : (
-                <div className="w-1.5 h-1.5 rounded-full bg-gray-700 ml-1.5 shrink-0" />
+                <span className="w-1.5 h-1.5 rounded-full bg-zinc-700 ml-1 shrink-0" />
               )}
-              <span
-                className={cn(
-                  "transition-colors",
-                  step.status === "done"
-                    ? "text-gray-400"
-                    : step.status === "in-progress"
-                    ? "text-blue-300"
-                    : "text-gray-600"
-                )}
-              >
-                {step.message}
-              </span>
+              <span className={cn(
+                step.status === "done" ? "text-zinc-500" : step.status === "in-progress" ? "text-blue-300" : "text-zinc-700"
+              )}>{step.message}</span>
             </div>
           ))}
         </div>
       )}
     </div>
   );
-};
+}
 
-const FormattedText = ({
-  text,
-  sources,
-}: {
-  text: string;
-  sources?: Source[];
-}) => {
-  // Pre-process text to replace citation markers [N] with links
-  const processedText = text.replace(/\[(\d+)\]/g, (match, id) => {
-    const index = parseInt(id) - 1;
-    const source = sources?.[index];
-    if (source) {
-      // Create a markdown link that will be rendered by the custom 'a' component or standard markdown
-      // We use a specific class or structure if we want special styling, but for now standard markdown link is easiest
-      // But we want it to look like [1] but be clickable.
-      // Let's rely on rehype-raw and inject a span/a tag.
-      return `<a href="${source.url}" class="citation-badge" target="_blank">${id}</a>`;
-    }
-    return match;
+function FormattedMarkdown({ text, sources }: { text: string; sources?: Source[] }) {
+  const processed = text.replace(/\[(\d+)\]/g, (match, id) => {
+    const src = sources?.[parseInt(id) - 1];
+    return src ? `<a href="${src.url}" class="citation-badge" target="_blank" rel="noopener noreferrer">${id}</a>` : match;
   });
 
   return (
-    <div className="citation-wrapper">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw, rehypeSanitize]}
-        components={{
-          // Headings
-          h1: ({ children }) => (
-            <h1 className="text-2xl font-bold text-white mt-8 mb-4 first:mt-0 font-inter">
-              {children}
-            </h1>
-          ),
-          h2: ({ children }) => (
-            <h2 className="text-xl font-semibold text-white mt-6 mb-3 first:mt-0 font-inter">
-              {children}
-            </h2>
-          ),
-          h3: ({ children }) => (
-            <h3 className="text-lg font-semibold text-gray-100 mt-5 mb-2 first:mt-0 font-inter">
-              {children}
-            </h3>
-          ),
-          h4: ({ children }) => (
-            <h4 className="text-base font-semibold text-gray-200 mt-4 mb-2 font-inter">
-              {children}
-            </h4>
-          ),
-
-          // Paragraphs
-          p: ({ children }) => (
-            <p className="text-[15px] leading-relaxed text-gray-300/95 mb-4 last:mb-0 font-ibm-plex-sans">
-              {children}
-            </p>
-          ),
-
-          // Lists
-          ul: ({ children }) => (
-            <ul className="list-disc list-outside ml-5 space-y-2 mb-4 text-gray-300">
-              {children}
-            </ul>
-          ),
-          ol: ({ children }) => (
-            <ol className="list-decimal list-outside ml-5 space-y-2 mb-4 text-gray-300">
-              {children}
-            </ol>
-          ),
-          li: ({ children }) => (
-            <li className="pl-1 leading-relaxed">{children}</li>
-          ),
-
-          // Code
-          code: ({ inline, className, children, ...props }: any) => {
-            // const match = /language-(\w+)/.exec(className || '');
-            return !inline ? (
-              <pre className="bg-[#0d1117] border border-white/10 rounded-lg p-4 mb-4 overflow-x-auto">
-                <code
-                  className={`text-sm text-gray-300 font-mono ${
-                    className || ""
-                  }`}
-                  {...props}
-                >
-                  {children}
-                </code>
-              </pre>
-            ) : (
-              <code
-                className="bg-white/5 text-blue-400 px-1.5 py-0.5 rounded text-sm font-mono"
-                {...props}
-              >
-                {children}
-              </code>
-            );
-          },
-
-          // Links
-          a: ({ href, className, children }) => {
-            // Check if it's our custom citation badge
-            if (className === "citation-badge") {
-              return (
-                <a
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center w-5 h-5 ml-0.5 -mt-2 text-[10px] font-bold text-blue-500 bg-blue-500/10 hover:bg-blue-500/20 rounded-full border border-blue-500/20 align-text-top transition-colors no-underline"
-                >
-                  {children}
-                </a>
-              );
-            }
-            return (
-              <a
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-400 hover:text-blue-300 underline decoration-blue-400/30 hover:decoration-blue-300/50 transition-colors"
-              >
-                {children}
-              </a>
-            );
-          },
-
-          // Blockquotes
-          blockquote: ({ children }) => (
-            <blockquote className="border-l-4 border-blue-500/30 pl-4 py-1 my-4 text-gray-400 italic">
-              {children}
-            </blockquote>
-          ),
-
-          // Tables
-          table: ({ children }) => (
-            <div className="overflow-x-auto mb-4">
-              <table className="min-w-full border border-white/10 rounded-lg overflow-hidden">
-                {children}
-              </table>
-            </div>
-          ),
-          thead: ({ children }) => (
-            <thead className="bg-white/5">{children}</thead>
-          ),
-          th: ({ children }) => (
-            <th className="px-4 py-2 text-left text-sm font-semibold text-gray-200 border-b border-white/10">
-              {children}
-            </th>
-          ),
-          td: ({ children }) => (
-            <td className="px-4 py-2 text-sm text-gray-300 border-b border-white/5">
-              {children}
-            </td>
-          ),
-
-          // Horizontal rule
-          hr: () => <hr className="my-6 border-white/10" />,
-
-          // Strong/Bold
-          strong: ({ children }) => (
-            <strong className="font-semibold text-white">{children}</strong>
-          ),
-
-          // Emphasis/Italic
-          em: ({ children }) => (
-            <em className="italic text-gray-200">{children}</em>
-          ),
-        }}
-      >
-        {processedText}
-      </ReactMarkdown>
-    </div>
+    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={{
+      h1: ({ children }) => <h1 className="text-2xl font-bold text-white mt-8 mb-4 first:mt-0">{children}</h1>,
+      h2: ({ children }) => <h2 className="text-xl font-semibold text-white mt-6 mb-3 first:mt-0">{children}</h2>,
+      h3: ({ children }) => <h3 className="text-lg font-semibold text-zinc-100 mt-5 mb-2 first:mt-0">{children}</h3>,
+      p: ({ children }) => <p className="text-[14.5px] leading-[1.8] text-zinc-300 mb-4 last:mb-0">{children}</p>,
+      ul: ({ children }) => <ul className="list-disc list-outside ml-5 space-y-1.5 mb-4 text-zinc-300">{children}</ul>,
+      ol: ({ children }) => <ol className="list-decimal list-outside ml-5 space-y-1.5 mb-4 text-zinc-300">{children}</ol>,
+      li: ({ children }) => <li className="pl-1 leading-relaxed text-[14px]">{children}</li>,
+      code: ({ inline, className, children, ...props }: any) =>
+        !inline
+          ? <pre className="bg-black/40 border border-white/[0.06] rounded-xl p-4 mb-4 overflow-x-auto"><code className={`text-[13px] text-zinc-300 font-mono ${className || ""}`} {...props}>{children}</code></pre>
+          : <code className="bg-white/[0.06] text-blue-400 px-1.5 py-0.5 rounded-md text-[13px] font-mono" {...props}>{children}</code>,
+      a: ({ href, className, children }) =>
+        className === "citation-badge"
+          ? <a href={href} target="_blank" rel="noopener noreferrer" className="citation-badge">{children}</a>
+          : <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline decoration-blue-400/20 hover:decoration-blue-300/40 transition-colors">{children}</a>,
+      blockquote: ({ children }) => <blockquote className="border-l-2 border-blue-500/30 pl-4 py-1 my-4 text-zinc-400 italic">{children}</blockquote>,
+      table: ({ children }) => <div className="overflow-x-auto mb-4"><table className="min-w-full border border-white/[0.06] rounded-xl overflow-hidden">{children}</table></div>,
+      thead: ({ children }) => <thead className="bg-white/[0.03]">{children}</thead>,
+      th: ({ children }) => <th className="px-4 py-2.5 text-left text-[13px] font-semibold text-zinc-200 border-b border-white/[0.06]">{children}</th>,
+      td: ({ children }) => <td className="px-4 py-2.5 text-[13px] text-zinc-300 border-b border-white/[0.03]">{children}</td>,
+      strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
+    }}>{processed}</ReactMarkdown>
   );
-};
+}
 
-// --- Main Component ---
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+      className="flex items-center gap-1.5 text-[11px] text-zinc-500 hover:text-zinc-300 px-2.5 py-1.5 rounded-lg hover:bg-white/[0.04] transition-all">
+      {copied ? <><Check className="w-3 h-3 text-emerald-500" />Copied</> : <><Copy className="w-3 h-3" />Copy</>}
+    </button>
+  );
+}
+
+// ─── Suggestions ───
+
+const SUGGESTIONS = [
+  { icon: TrendingUp, text: "Latest developments in AI agents 2026", color: "from-blue-500/10 to-blue-600/5" },
+  { icon: Search, text: "How does HNSW algorithm work?", color: "from-violet-500/10 to-violet-600/5" },
+  { icon: BookOpen, text: "Best practices for RAG pipelines", color: "from-emerald-500/10 to-emerald-600/5" },
+  { icon: Zap, text: "Compare GPT-4 vs Claude 3.5 performance", color: "from-amber-500/10 to-amber-600/5" },
+];
+
+// ─── Main ───
 
 export default function ResearchChat() {
-  const router = useRouter();
+  const history = useChatHistoryContext();
   const [query, setQuery] = useState("");
-  const [isSearching, setIsSearching] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-scroll logic
+  // Load messages when switching sessions
   useEffect(() => {
-    if (scrollRef.current) {
-      const isNearBottom =
-        window.innerHeight + window.scrollY >= document.body.offsetHeight - 500;
-      if (isNearBottom) {
-        scrollRef.current.scrollIntoView({ behavior: "smooth" });
-      }
+    if (history.activeSessionId) {
+      const found = history.sessionsRef.current.find(s => s.id === history.activeSessionId);
+      setMessages(found?.messages || []);
+    } else {
+      setMessages([]);
     }
-  }, [messages, isSearching]);
+  }, [history.activeSessionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSearch = async () => {
-    if (!query.trim() || isSearching) return;
+  // Auto-scroll on new messages
+  useEffect(() => {
+    scrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages]);
 
-    const userQuery = query;
+  // "/" shortcut
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && !["INPUT", "TEXTAREA"].includes((e.target as HTMLElement)?.tagName || "")) {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, []);
+
+  const handleNewChat = useCallback(() => {
+    history.setActiveSessionId(null);
+    setMessages([]);
     setQuery("");
-    setIsSearching(true);
+    setSearching(false);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }, [history]);
 
-    const newMessageId = Date.now().toString();
+  // ─── Core search handler ───
+  const handleSearch = async () => {
+    const q = query.trim();
+    if (!q || searching) return;
 
-    // Add user message
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        role: "user",
-        content: userQuery,
-      },
-    ]);
+    setQuery("");
+    setSearching(true);
 
-    // Add initial assistant message placeholder
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: newMessageId,
-        role: "assistant",
-        content: "",
-        steps: [
-          { id: 1, message: "Initializing research...", status: "in-progress" },
-        ],
-        isThinking: true,
-      },
-    ]);
+    // Create or reuse session — pass title on first creation
+    let sid = history.activeSessionId;
+    if (!sid) {
+      const title = q.length > 55 ? q.slice(0, 55) + "..." : q;
+      sid = history.createSession(title);
+    }
+
+    const msgId = `msg_${Date.now()}`;
+    const userMsg: Message = { id: `user_${Date.now()}`, role: "user", content: q };
+    const asstMsg: Message = {
+      id: msgId, role: "assistant", content: "",
+      steps: [{ id: 1, message: "Initializing research...", status: "in-progress" }],
+      isThinking: true,
+    };
+
+    setMessages(prev => [...prev, userMsg, asstMsg]);
 
     try {
-      const response = await fetch("/api/research", {
+      const res = await fetch("/api/research", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: userQuery }),
+        body: JSON.stringify({ query: q, session_id: sid }),
       });
 
-      if (response.status === 401 || response.status === 403) {
-        window.location.href = "/auth";
+      if (res.status === 401 || res.status === 403) { window.location.href = "/auth"; return; }
+      if (res.status === 429) {
+        setMessages(prev => prev.map(m => m.id === msgId
+          ? { ...m, content: "⚠️ Daily quota exceeded. Please try again tomorrow.", isThinking: false, steps: m.steps?.map(s => ({ ...s, status: "done" as const })) }
+          : m));
+        setSearching(false);
         return;
       }
+      if (!res.body) throw new Error("No response body");
 
-      if (response.status === 429) {
-        throw new Error("Daily quota exceeded. Please try again tomorrow.");
-      }
-
-      if (!response.body) throw new Error("No response body");
-
-      const reader = response.body.getReader();
+      const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-      let currentStepId = 1;
+      let stepId = 1;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -411,373 +267,202 @@ export default function ResearchChat() {
         buffer = lines.pop() || "";
 
         for (const line of lines) {
-          if (line.startsWith("event: ")) {
-            const eventMatch = line.match(/^event: (.+)$/m);
-            const dataMatch = line.match(/^data: (.+)$/m);
+          if (!line.startsWith("event: ")) continue;
+          const evtMatch = line.match(/^event: (.+)$/m);
+          const datMatch = line.match(/^data: (.+)$/m);
+          if (!evtMatch || !datMatch) continue;
 
-            if (eventMatch && dataMatch) {
-              const eventType = eventMatch[1].trim();
-              const dataStr = dataMatch[1].trim();
-              let data;
-              try {
-                data = JSON.parse(dataStr);
-              } catch {
-                data = dataStr;
-              }
+          const evt = evtMatch[1].trim();
+          let data: any;
+          try { data = JSON.parse(datMatch[1].trim()); } catch { data = datMatch[1].trim(); }
 
-              switch (eventType) {
-                case "query_type":
-                  setMessages((prev) =>
-                    prev.map((msg) =>
-                      msg.id === newMessageId
-                        ? { ...msg, queryType: data }
-                        : msg
-                    )
-                  );
-                  break;
-
-                case "status":
-                  // Mark current step done
-                  updateStep(newMessageId, currentStepId, "done");
-                  // Add new step
-                  currentStepId++;
-                  addStep(newMessageId, {
-                    id: currentStepId,
-                    message: data,
-                    status: "in-progress",
-                  });
-                  break;
-
-                case "sources":
-                  setMessages((prev) =>
-                    prev.map((msg) => {
-                      if (msg.id === newMessageId) {
-                        return { ...msg, sources: data };
-                      }
-                      return msg;
-                    })
-                  );
-                  break;
-
-                case "token":
-                  // Stop thinking animation when tokens start
-                  setMessages((prev) =>
-                    prev.map((msg) =>
-                      msg.id === newMessageId && msg.isThinking
-                        ? { ...msg, isThinking: false }
-                        : msg
-                    )
-                  );
-
-                  setMessages((prev) =>
-                    prev.map((msg) =>
-                      msg.id === newMessageId
-                        ? { ...msg, content: msg.content + data }
-                        : msg
-                    )
-                  );
-                  break;
-
-                case "done":
-                  updateStep(newMessageId, currentStepId, "done");
-                  setIsSearching(false);
-                  break;
-
-                case "error":
-                  updateStep(newMessageId, currentStepId, "done");
-                  setMessages((prev) =>
-                    prev.map((msg) =>
-                      msg.id === newMessageId
-                        ? {
-                            ...msg,
-                            content: msg.content + "\n\n**Error:** " + data,
-                          }
-                        : msg
-                    )
-                  );
-                  break;
-              }
-            }
+          switch (evt) {
+            case "query_type":
+              setMessages(prev => prev.map(m => m.id === msgId ? { ...m, queryType: data } : m));
+              break;
+            case "status":
+              setMessages(prev => prev.map(m => {
+                if (m.id !== msgId || !m.steps) return m;
+                const steps = m.steps.map(s => s.id === stepId ? { ...s, status: "done" as const } : s);
+                stepId++;
+                return { ...m, steps: [...steps, { id: stepId, message: data, status: "in-progress" as const }] };
+              }));
+              break;
+            case "sources":
+              setMessages(prev => prev.map(m => m.id === msgId ? { ...m, sources: data } : m));
+              break;
+            case "token":
+              setMessages(prev => prev.map(m => m.id === msgId ? { ...m, isThinking: false, content: m.content + data } : m));
+              break;
+            case "done":
+              setMessages(prev => {
+                const updated = prev.map(m => {
+                  if (m.id !== msgId) return m;
+                  return { ...m, isThinking: false, steps: m.steps?.map(s => ({ ...s, status: "done" as const })) };
+                });
+                // Save to history (deferred)
+                setTimeout(() => { if (sid) history.updateSession(sid, { messages: updated }); }, 0);
+                return updated;
+              });
+              setSearching(false);
+              break;
+            case "error":
+              setMessages(prev => prev.map(m =>
+                m.id === msgId ? { ...m, content: m.content + "\n\n**Error:** " + data, isThinking: false, steps: m.steps?.map(s => ({ ...s, status: "done" as const })) } : m
+              ));
+              setSearching(false);
+              break;
           }
         }
       }
     } catch (err) {
       console.error(err);
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === newMessageId
-            ? { ...msg, content: msg.content + "\n\n**Connection Error**" }
-            : msg
-        )
-      );
-      setIsSearching(false);
+      setMessages(prev => prev.map(m =>
+        m.id === msgId ? { ...m, content: m.content || "**Connection Error:** Could not reach the server. Make sure the backend is running.", isThinking: false } : m
+      ));
+      setSearching(false);
     }
   };
 
-  const updateStep = (
-    msgId: string,
-    stepId: number,
-    status: "done" | "in-progress"
-  ) => {
-    setMessages((prev) =>
-      prev.map((msg) => {
-        if (msg.id === msgId && msg.steps) {
-          return {
-            ...msg,
-            steps: msg.steps.map((s) =>
-              s.id === stepId ? { ...s, status } : s
-            ),
-          };
-        }
-        return msg;
-      })
-    );
-  };
-
-  const addStep = (msgId: string, step: Step) => {
-    setMessages((prev) =>
-      prev.map((msg) => {
-        if (msg.id === msgId && msg.steps) {
-          return { ...msg, steps: [...msg.steps, step] };
-        }
-        return msg;
-      })
-    );
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSearch();
-    }
-  };
-
-  const isHome = messages.length === 0;
+  const isHome = messages.length === 0 && !searching;
 
   return (
-    <div className="flex flex-col h-screen bg-[#18181b] text-zinc-100 font-sans selection:bg-blue-500/30 w-full">
-      {/* Header (Hidden on Home) */}
+    <div className="flex flex-col h-full bg-[#0f0f11] text-zinc-100 selection:bg-blue-500/20 w-full">
+      {/* ── Header (chat mode) ── */}
       {!isHome && (
-        <header className="fixed top-0 w-full bg-[#18181b]/80 backdrop-blur-md border-b border-white/5 z-50 h-14 flex items-center px-4 md:px-6">
-          <div className="flex items-center gap-2 text-sm font-medium text-zinc-300">
-            <Sparkles className="w-4 h-4 text-blue-500" />
-            <span>ResearchEngine</span>
+        <header className="shrink-0 h-11 flex items-center px-4 md:px-6 border-b border-white/[0.04] bg-[#0f0f11]/80 backdrop-blur-xl">
+          <div className="flex items-center gap-2 text-[13px] text-zinc-500">
+            <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+            <span className="font-medium text-zinc-400">ResearchAgent</span>
           </div>
-          <div className="ml-auto flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-zinc-400 hover:text-white hover:bg-white/5"
-            >
-              <Share2 className="w-4 h-4" />
-            </Button>
-            <Link href="/profile">
-              <div className="w-8 h-8 rounded-full bg-linear-to-tr from-blue-600 to-purple-600 flex items-center justify-center text-xs font-bold hover:ring-2 hover:ring-white/20 transition-all cursor-pointer">
-                D
-              </div>
-            </Link>
-          </div>
+          <button onClick={handleNewChat}
+            className="ml-auto flex items-center gap-1.5 text-[12px] text-zinc-500 hover:text-white px-2.5 py-1.5 rounded-lg hover:bg-white/[0.05] transition-all">
+            <RotateCcw className="w-3 h-3" /> New
+          </button>
         </header>
       )}
 
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto pt-14 pb-32 scroll-smooth">
-        <div
-          className={cn(
-            "max-w-3xl mx-auto px-4 md:px-0 transition-all duration-500 ease-in-out",
-            isHome
-              ? "min-h-[80vh] flex flex-col justify-center items-center"
-              : "py-8"
-          )}
-        >
-          {/* Home Screen Hero */}
+      {/* ── Scrollable content ── */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className={cn(
+          "max-w-[740px] mx-auto px-5",
+          isHome ? "min-h-full flex flex-col justify-center items-center py-10" : "py-6 pb-6"
+        )}>
+          {/* Hero */}
           {isHome && (
-            <div className="w-full text-center space-y-8 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <div className="w-16 h-16 mx-auto bg-[#202022] rounded-2xl border border-white/5 flex items-center justify-center shadow-2xl shadow-blue-900/10">
-                <Sparkles className="w-8 h-8 text-blue-500" />
+            <div className="w-full text-center space-y-6 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <div className="relative w-16 h-16 mx-auto mb-2">
+                <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-2xl glow-orb" />
+                <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-[#1a1a1d] to-[#131315] border border-white/[0.06] flex items-center justify-center shadow-2xl">
+                  <Sparkles className="w-8 h-8 text-blue-500" />
+                </div>
               </div>
-              <h1 className="text-4xl md:text-5xl font-medium tracking-tight text-white">
-                What do you want to know?
-              </h1>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl mx-auto mt-8">
-                {[
-                  "Latest developments in AI agents 2026",
-                  "How does HNSW algorithm work?",
-                  "Best practices for RAG pipelines",
-                  "What is vector similarity search?"
-                ].map((q, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setQuery(q)}
-                    className="text-sm text-zinc-400 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-left p-4 transition-colors"
-                  >
-                    {q}
+              <div>
+                <h1 className="text-[36px] md:text-[44px] font-semibold tracking-[-0.03em] text-white leading-tight">
+                  What do you want<br />
+                  <span className="bg-gradient-to-r from-blue-400 via-blue-500 to-indigo-500 bg-clip-text text-transparent">to research?</span>
+                </h1>
+                <p className="text-zinc-500 text-[14px] mt-3 max-w-md mx-auto leading-relaxed">
+                  I search the web, analyze sources, and give you citation-backed answers in seconds.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-lg mx-auto mt-4">
+                {SUGGESTIONS.map((s, i) => (
+                  <button key={i} onClick={() => { setQuery(s.text); inputRef.current?.focus(); }}
+                    className={`group flex items-start gap-3 text-left p-3 rounded-xl bg-gradient-to-br ${s.color} border border-white/[0.04] hover:border-white/[0.10] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]`}>
+                    <s.icon className="w-4 h-4 text-zinc-500 group-hover:text-zinc-300 mt-0.5 shrink-0 transition-colors" />
+                    <span className="text-[13px] text-zinc-400 group-hover:text-zinc-200 transition-colors leading-snug">{s.text}</span>
                   </button>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Chat Messages */}
-          <div className="space-y-12 w-full">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className="animate-in fade-in slide-in-from-bottom-4 duration-500"
-              >
+          {/* Messages */}
+          <div className="space-y-8 w-full">
+            {messages.map(msg => (
+              <div key={msg.id} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                 {msg.role === "user" ? (
-                  <h2 className="font-inter text-3xl font-medium text-white tracking-tight mb-8">
-                    {msg.content}
-                  </h2>
+                  <div className="mb-4">
+                    <h2 className="text-[24px] md:text-[28px] font-semibold text-white tracking-tight leading-tight">{msg.content}</h2>
+                  </div>
                 ) : (
-                  <div className="relative">
-                    {/* Left Connector Line */}
-                    <div className="absolute left-0 top-0 bottom-0 w-px bg-white/5 -ml-8 hidden md:block" />
-
+                  <div>
                     {msg.queryType && (
-                      <div className="mb-4">
-                        {msg.queryType === 'CONVERSATIONAL' && (
-                          <span className="text-xs text-zinc-500 px-2 py-0.5 rounded-full border border-zinc-700">
-                            Direct answer
+                      <div className="mb-3">
+                        {msg.queryType === "CONVERSATIONAL" && (
+                          <span className="inline-flex items-center gap-1.5 text-[11px] text-zinc-500 px-2.5 py-1 rounded-full bg-white/[0.03] border border-white/[0.06]">
+                            <Zap className="w-3 h-3" /> Direct answer
                           </span>
                         )}
-                        {msg.queryType === 'RESEARCH' && (
-                          <span className="text-xs text-blue-400 px-2 py-0.5 rounded-full border border-blue-800">
-                            Web research
+                        {msg.queryType === "RESEARCH" && (
+                          <span className="inline-flex items-center gap-1.5 text-[11px] text-blue-400 px-2.5 py-1 rounded-full bg-blue-500/[0.06] border border-blue-500/[0.10]">
+                            <Search className="w-3 h-3" /> Web research
                           </span>
                         )}
                       </div>
                     )}
 
-                    {/* Thought Process */}
-                    <ThinkingProcess
-                      steps={msg.steps}
-                      isThinking={msg.isThinking}
-                    />
+                    <ThinkingSteps steps={msg.steps} isThinking={msg.isThinking} />
 
-                    {/* Sources Grid */}
                     {msg.sources && msg.sources.length > 0 && (
-                      <div className="mb-8">
-                        <div className="flex items-center gap-2 mb-3 text-sm text-gray-400 uppercase tracking-wider font-medium">
-                          <Library className="w-4 h-4" />
-                          Sources
+                      <div className="mb-5">
+                        <div className="flex items-center gap-2 mb-2.5 text-[11px] text-zinc-500 uppercase tracking-[0.1em] font-semibold">
+                          <Library className="w-3.5 h-3.5" /> Sources · {msg.sources.length}
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                          {msg.sources.map((source, idx) => (
-                            <SourceCard key={idx} source={source} index={idx} />
-                          ))}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                          {msg.sources.map((src, i) => <SourceCard key={i} source={src} index={i} />)}
                         </div>
                       </div>
                     )}
 
-                    {/* Answer Text */}
                     {msg.content && (
-                      <div className="group">
-                        <div className="flex items-center gap-2 mb-3 text-sm text-gray-400 uppercase tracking-wider font-medium">
-                          <AlignLeft className="w-4 h-4" />
-                          Answer
+                      <div>
+                        <div className="flex items-center gap-2 mb-3 text-[11px] text-zinc-500 uppercase tracking-[0.1em] font-semibold">
+                          <AlignLeft className="w-3.5 h-3.5" /> Answer
                         </div>
-                        <FormattedText
-                          text={msg.content}
-                          sources={msg.sources}
-                        />
-
-                        {/* Action Buttons */}
-                        <div className="flex items-center gap-2 mt-6 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button
-                            onClick={() => navigator.clipboard.writeText(msg.content)}
-                            variant="outline"
-                            size="sm"
-                            className="bg-[#202022] border-white/5 text-xs text-gray-400 h-8 hover:text-white hover:bg-white/10"
-                          >
-                            <Copy className="w-3.5 h-3.5 mr-2" />
-                            Copy
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="bg-[#202022] border-white/5 text-xs text-gray-400 h-8 hover:text-white hover:bg-white/10"
-                          >
-                            <Share2 className="w-3.5 h-3.5 mr-2" />
-                            Share
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="bg-[#202022] border-white/5 text-xs text-gray-400 h-8 hover:text-white hover:bg-white/10"
-                          >
-                            <Plus className="w-3.5 h-3.5 mr-2" />
-                            Follow-up
-                          </Button>
+                        <div className={msg.isThinking && msg.content ? "typing-cursor" : ""}>
+                          <FormattedMarkdown text={msg.content} sources={msg.sources} />
                         </div>
+                        {!msg.isThinking && msg.content && (
+                          <div className="flex items-center gap-1 mt-4 pt-3 border-t border-white/[0.04]">
+                            <CopyButton text={msg.content} />
+                            <button onClick={() => { setQuery(`Tell me more about: ${msg.content.slice(0, 60)}...`); inputRef.current?.focus(); }}
+                              className="flex items-center gap-1.5 text-[11px] text-zinc-500 hover:text-zinc-300 px-2.5 py-1.5 rounded-lg hover:bg-white/[0.04] transition-all">
+                              <Plus className="w-3 h-3" /> Follow-up
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
                 )}
               </div>
             ))}
-            <div ref={scrollRef} className="h-4" />
+            <div ref={scrollRef} />
           </div>
+        </div>
+      </div>
 
-          {/* Input Area (Centered on Home, Bottom on Chat) */}
-          <div
-            className={cn(
-              "w-full transition-all duration-500 ease-in-out z-20",
-              isHome
-                ? "max-w-2xl"
-                : "fixed bottom-0 left-0 right-0 bg-linear-to-t from-[#18181b] via-[#18181b] to-transparent pt-10 pb-6"
-            )}
-          >
-            <div
-              className={cn(
-                "mx-auto relative",
-                isHome ? "w-full" : "max-w-3xl px-4 md:px-0"
-              )}
-            >
-              <div className="relative group">
-                <Input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Ask anything..."
-                  disabled={isSearching}
-                  className={cn(
-                    "w-full font-instrument bg-[#202022] text-white border-white/10 placeholder:text-gray-500 focus-visible:ring-1 focus-visible:ring-blue-500/50 focus-visible:border-blue-500/50 transition-all shadow-2xl",
-                    isHome
-                      ? "h-16 text-lg px-6 rounded-2xl"
-                      : "h-14 text-base px-5 pr-14 rounded-xl"
-                  )}
-                />
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                  <Button
-                    onClick={handleSearch}
-                    disabled={isSearching || !query.trim()}
-                    size="icon"
-                    className={cn(
-                      "transition-all duration-300",
-                      query.trim()
-                        ? "bg-blue-600 hover:bg-blue-500 text-white"
-                        : "bg-transparent text-gray-500 hover:bg-white/5",
-                      isHome ? "w-10 h-10 rounded-xl" : "w-9 h-9 rounded-lg"
-                    )}
-                  >
-                    {isSearching ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <ArrowUp className="w-5 h-5" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              {!isHome && (
-                <p className="text-[10px] text-center text-gray-600 mt-3">
-                  Pro Search • Powered by LLM & Live Web
-                </p>
-              )}
+      {/* ── Input bar (flex bottom, never overlaps sidebar) ── */}
+      <div className="shrink-0 border-t border-white/[0.04] bg-[#0f0f11] px-5 py-3">
+        <div className={cn("mx-auto relative", isHome ? "max-w-lg" : "max-w-[740px]")}>
+          <div className="relative">
+            <Input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSearch(); } }}
+              placeholder="Ask anything..." disabled={searching}
+              className="w-full h-12 bg-white/[0.04] text-white text-[14px] px-4 pr-12 rounded-xl border-white/[0.08] placeholder:text-zinc-600 focus-visible:ring-1 focus-visible:ring-blue-500/40 focus-visible:border-blue-500/30 transition-all" />
+            <div className="absolute right-1.5 top-1/2 -translate-y-1/2">
+              <Button onClick={handleSearch} disabled={searching || !query.trim()} size="icon"
+                className={cn("transition-all duration-200 rounded-xl w-9 h-9",
+                  query.trim() ? "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20" : "bg-transparent text-zinc-600 hover:bg-white/[0.04]")}>
+                {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUp className="w-4 h-4" />}
+              </Button>
             </div>
           </div>
+          <p className="text-[10px] text-center text-zinc-700 mt-1.5">
+            Press <kbd className="px-1 py-0.5 bg-white/[0.04] rounded border border-white/[0.06] text-[9px] font-mono text-zinc-500">/</kbd> to focus
+          </p>
         </div>
       </div>
     </div>

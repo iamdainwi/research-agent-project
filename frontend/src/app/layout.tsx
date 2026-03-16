@@ -15,9 +15,9 @@ const ibm_plex_sans = IBM_Plex_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Rsearcher Assistant",
+  title: "Research Assistant",
   description:
-    "An AI-powered research assistant to help you find relevant papers quickly and efficiently.",
+    "An AI-powered research assistant that transforms complex questions into comprehensive, citation-backed reports.",
 };
 
 export default function RootLayout({
@@ -26,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <body
         className={`${inter.variable} ${ibm_plex_sans.variable} antialiased`}
       >

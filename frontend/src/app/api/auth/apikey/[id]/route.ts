@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5001';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
 
 // Dynamic route handler for DELETE /api/auth/apikey/[id]
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {

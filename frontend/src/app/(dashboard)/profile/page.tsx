@@ -28,7 +28,7 @@ interface UserProfile {
 }
 
 interface ApiKey {
-  _id: string;
+  id: string;
   name: string;
   key: string;
   createdAt: string;
@@ -119,7 +119,7 @@ export default function ProfilePage() {
         const data = await res.json();
         
         if (data.success) {
-            setApiKeys(apiKeys.filter(k => k._id !== id));
+            setApiKeys(apiKeys.filter(k => k.id !== id));
         }
     } catch (error) {
         console.error("Failed to delete key", error);
@@ -258,7 +258,7 @@ export default function ProfilePage() {
                      <p className="text-gray-500 text-sm py-4 text-center border border-dashed border-white/10 rounded-lg">No API keys created yet.</p>
                  ) : (
                      apiKeys.map((key) => (
-                         <div key={key._id} className="flex items-center justify-between p-4 bg-[#0a0a0b] rounded-xl border border-white/5">
+                         <div key={key.id} className="flex items-center justify-between p-4 bg-[#0a0a0b] rounded-xl border border-white/5">
                              <div className="space-y-1">
                                  <p className="text-sm font-medium text-white">{key.name}</p>
                                  <p className="text-xs text-mono text-gray-500 font-mono truncate max-w-[200px] md:max-w-md">
@@ -277,7 +277,7 @@ export default function ProfilePage() {
                                 <Button
                                     size="sm"
                                     variant="ghost"
-                                    onClick={() => deleteApiKey(key._id)}
+                                    onClick={() => deleteApiKey(key.id)}
                                     className="text-gray-400 hover:text-red-400 hover:bg-red-500/10"
                                 >
                                     <Trash2 className="w-4 h-4" />

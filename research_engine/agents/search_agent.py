@@ -3,8 +3,8 @@ import re
 import os
 from typing import List, Dict
 from ollama import Client
-from duckduckgo_search import DDGS
-from duckduckgo_search.exceptions import RatelimitException
+from ddgs import DDGS
+from ddgs.exceptions import RatelimitException
 from config import logger, OLLAMA_HOST, OLLAMA_API_KEY, MODEL_NAME
 
 def expand_queries(original_query: str, num_variations: int = 6) -> List[str]:
